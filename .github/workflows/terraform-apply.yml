@@ -1,67 +1,60 @@
-name: 'Terraform Plan and Apply'
+name: 'Terraform Workflow'
 
 on:
-    push:
-        branches: [ "main" ]
-    pull_request:
+  push:
+    branches: [ "main" ]
+  pull_request:
 
 env:
-    ARM_CLINT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-    ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-    ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-    ARM_TENENT_ID: ${{ secrets.AZURE_TENENT_ID }}
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
 
 jobs:
-    terraform-plan:
-        name: 'Terraform Plan'
-        runs-on: ubuntu-latest
+  terraform:
+    name: 'Terraform Pipeline'
+    runs-on: ubuntu-latest
 
-        steps:
-        - name: Checkout
-          uses: actions/checkout@v4
+    steps:
+    # Step 1: Checkout the repository
+    - name: Checkout Code
+      uses: actions/checkout@v4
 
-        - name: Azure login
-          uses: azure/login@v2
-          with:
-            creds: ${{ secrets.AZURE_CREDENTIALS }}
+    # Step 2: Login to Azure
+    - name: Azure Login
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-        - name: Setup Terraform
-          uses: hashicorp/setup-terraform@v1
+    # Step 3: Setup Terraform
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v1
 
-        - name: Terraform Init
-          run: terraform init
+    # Step 4: Terraform Init
+    - name: Terraform Init
+      run: terraform init
 
-        - name: Terraform Generate Plan
-          run: terraform plan -out=terraform.plan
+    # Step 5: Terraform Format Check
+    - name: Check Terraform Format
+      run: terraform fmt -check
 
-        - name: Upload Terraform Plan
-          uses: actions/upload-artifact@v3
-          with:
-            name: terraform-plan
-            path: terraform.plan
+    # Step 6: Terraform Validate
+    - name: Validate Terraform Files
+      run: terraform validate
 
-    terraform-apply:
-        name: 'Terraform Apply'
-        runs-on: ubuntu-latest
-        needs: terraform-plan
+    # Step 7: Generate Terraform Plan
+    - name: Generate Terraform Plan
+      run: terraform plan -out=terraform.plan
 
-        steps:
-        - name: Checkout
-          uses: actions/checkout@v4
+    # Step 8: Upload Terraform Plan (Optional for debugging in case of errors)
+    - name: Upload Terraform Plan
+      uses: actions/upload-artifact@v3
+      with:
+        name: terraform-plan
+        path: terraform.plan
 
-        - name: Setup Terraform
-          uses: hashicorp/setup-terraform@v1
-
-        - name: Terraform Init
-          run: terraform init
-
-        - name: Download Artifact
-          uses: actions/download-artifact@v3
-          with:
-            name: terraform-plan
-            path: .
-
-        - name: Terraform Apply
-          run: terraform apply -auto-approve terraform.plan
-
-
+    # Step 9: Terraform Apply
+    - name: Apply Terraform Plan
+      if: github.event_name == 'push'
+      run: terraform apply -auto-approve terraform.plan
